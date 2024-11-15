@@ -1,9 +1,14 @@
-use copilot_rs::{complete, FunctiomImplTrait, FunctionTool, IntoPrompt};
+use copilot_rs::{complete, FunctionImplTrait, FunctionTool, IntoPrompt, Structure};
 use serde::{Deserialize, Serialize};
 extern crate copilot_rs;
 
 fn main() {
-    let a = test("深圳");
+    let a = test("class DataModel(BaseModel):
+   name: str
+   email: str
+   cost: float  # Answer to the reasoning problem, stored as a float
+   experience: list[str]
+   skills: list[str]");
     println!("{a}");
 }
 
@@ -18,9 +23,13 @@ fn client() -> copilot_rs::ChatModel {
     // chat_model
 }
 // complete会将函数体和参数注入到函数中
-#[complete(client="client", temperature=0.6, max_tokens=1000, tools=["Add", "GetCurrentWeather"], response_format="Answer")]
+#[complete(client="client", temperature=0.6, max_tokens=1000, response_format="Answer")]
 fn test(name: &str) -> String {
-    vec![format!("{}今天天气怎么样", name).user()].chat()
+    vec![format!("对输入按照指定的格式输出").system(),format!("John Doe is a freelance software engineer. He charges a base rate of $50 per
+hour for the first 29 hours of work each week. For any additional hours, he
+charges 1.7 times his base hourly rate. This week, John worked on a project
+for 38 hours. How much will John Doe charge his client for the project this
+week? 输出{}", name).user()].chat()
 }
 
 #[derive(FunctionTool, Deserialize, Serialize)]
@@ -30,7 +39,7 @@ struct GetCurrentWeather {
     location: String,
 }
 
-impl FunctiomImplTrait for GetCurrentWeather {
+impl FunctionImplTrait for GetCurrentWeather {
     fn exec(&self) -> String {
         "剧烈高温".to_string()
     }
@@ -45,14 +54,17 @@ struct Add {
     second: f64,
 }
 
-impl FunctiomImplTrait for Add {
+impl FunctionImplTrait for Add {
     fn exec(&self) -> String {
         (self.first + self.second).to_string()
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Answer {
-    question: String,
-    answer: String,
-}
+// #[derive(Structure, Debug, Serialize, Deserialize)]
+// #[props(doc = "Which is the highest mountain in the world? Mount Everest.")]
+// struct Answer {
+//     #[serde(default = "Which is the highest mountain in the world?")]
+//     question: String,
+//     #[props(default = "Mount Everest")]
+//     answer: String,
+// }

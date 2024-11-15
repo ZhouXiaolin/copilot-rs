@@ -23,7 +23,7 @@ struct MacroArgs {
     temperature: Option<f32>,
     max_tokens: Option<u32>,
     tools: Option<Vec<LitStr>>,
-    response_format: Option<LitStr>,
+    response_format: Option<String>,
 }
 
 fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
@@ -74,37 +74,18 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
     let model = args.model.clone().unwrap_or_default();
     let temperature = args.temperature.unwrap_or(0.7);
     let max_tokens = args.max_tokens.unwrap_or(1024);
-    let idents_iter = args
+    let functions = args
         .tools
         .as_ref()
-        .map(|v| v.iter().map(|v| Ident::new(v.value().as_str(), v.span())));
-
-    let (tools, functions) = if let Some(idents_iter) = idents_iter {
-        let tools = {
-            let tools = idents_iter.clone().collect::<Vec<_>>();
-            quote! {
-                vec![#(#tools::desc()),*]
+        .map(|v| v.iter().map(|v| Ident::new(v.value().as_str(), v.span())))
+        .map(|tools|quote! {
+            {
+                let mut hm = std::collections::HashMap::new();
+                #(hm.insert(#tools::key(),(#tools::desc(),#tools::inject as fn(std::collections::HashMap<String, serde_json::Value>) -> String));)*
+                hm
             }
-        };
-        let functions = {
-            let tools = idents_iter.clone().collect::<Vec<_>>();
-            quote! {
-                {
-                    let mut hm = std::collections::HashMap::new();
-                    #(hm.insert(#tools::key(),#tools::inject as fn(std::collections::HashMap<String, serde_json::Value>) -> String);)*
-                    hm
-                }
-            }
-        };
-
-        (tools, functions)
-    } else {
-        (
-            quote! { vec![] },
-            quote! { std::collections::HashMap::new() },
-        )
-    };
-
+        }).unwrap_or(quote! { std::collections::HashMap::new() });
+    let response
     if is_async {
         let trait_def = quote! {
             trait #new_chat_trait_name_ident {
@@ -142,9 +123,8 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
                     let model = #model;
                     let temperature = #temperature;
                     let max_tokens = #max_tokens;
-                    let tools = #tools;
                     let functions = #functions;
-                    copilot_rs::chat(&client,&self,model,temperature, max_tokens,tools,functions)
+                    copilot_rs::chat(&client,&self,model,temperature, max_tokens,functions)
                 }
             }
         };

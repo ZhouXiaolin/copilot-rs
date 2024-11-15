@@ -58,9 +58,10 @@ impl FunctionImplTrait for GetCurrentWeather {
 more detail, please see the example in the `src/main.rs` file.
 
 ## TODO
-- [ ] Support structure output
-- [ ] Add more examples
-
+- [ ] Structure output
+- [ ] More examples
+- [ ] Agent
+- [ ] SSE support
 ## Notice
 This project is still in the early stages of development. It is not yet ready for production use.
 if you have some issues with it, please feel free to open an issue or submit a pull request.

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
 
 pub use copilot_rs_macro::{complete, FunctionTool};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
@@ -11,8 +11,11 @@ pub trait FunctionTool {
     fn desc() -> String;
     fn inject(args: HashMap<String, serde_json::Value>) -> String;
 }
+pub trait Structure {
+    
+}
 
-pub trait FunctiomImplTrait {
+pub trait FunctionImplTrait {
     fn exec(&self) -> String;
 }
 
@@ -23,18 +26,23 @@ pub struct ChatModel {
     pub chat_api_key: String,
 }
 type FuncImpl = fn(std::collections::HashMap<String, serde_json::Value>) -> String;
+
+struct NormalChat<T = String>{
+    _marker: PhantomData<T>
+}
+
 pub fn chat(
     model: &ChatModel,
     messages: &[PromptMessage],
     chat_model: &str,
     temperature: f32,
     max_tokens: u32,
-    tools: Vec<String>,
-    functions: HashMap<String, FuncImpl>,
+    // tools: Vec<String>,
+    functions: HashMap<String, (String, FuncImpl)>,
 ) -> String {
-    let tools: Vec<serde_json::Value> = tools
+    let tools: Vec<serde_json::Value> = functions
         .iter()
-        .map(|v| serde_json::from_str(v).unwrap())
+        .map(|(_,(v,_))| serde_json::from_str(v).unwrap())
         .collect();
     let client = reqwest::blocking::Client::new();
     let mut headers = reqwest::header::HeaderMap::new();
@@ -73,7 +81,7 @@ pub fn chat(
                 .iter()
                 .map(|call| {
                     let call_name = &call.function.name;
-                    let call_func = functions.get(call_name).unwrap();
+                    let (_,call_func) = functions.get(call_name).unwrap();
                     let args = call.function.arguments.clone();
                     let result = call_func(args);
                     result.tool(call.id.clone())
@@ -147,7 +155,8 @@ where
     D: serde::Deserializer<'de>,
 {
     let json_string: String = Deserialize::deserialize(deserializer)?;
-    let s = json_string.replace("\\", "");
+    dbg!(&json_string);
+    let s = json_string.replace("\\\"", "\\");
     let map: HashMap<String, serde_json::Value> = serde_json::from_str(&s).unwrap();
     Ok(map)
 }
