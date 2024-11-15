@@ -21,9 +21,9 @@ fn test(name: &str) -> String {
 
 
 #[derive(FunctionTool, Deserialize, Serialize)]
-#[property(desc = "Get weather of an location, the user shoud supply a location first")]
+#[props(desc = "Get weather of an location, the user shoud supply a location first")]
 struct GetCurrentWeather {
-    #[property(desc = "The city and state, e.g. San Francisco, CA")]
+    #[props(desc = "The city and state, e.g. San Francisco, CA")]
     location: String,
 }
 
@@ -35,11 +35,11 @@ impl FunctiomImplTrait for GetCurrentWeather {
 
 
 #[derive(FunctionTool, Deserialize, Serialize)]
-#[property(desc = "add two number")]
+#[props(desc = "add two number")]
 struct Add {
-    #[property(desc = "first number")]
+    #[props(desc = "first number")]
     first: f64,
-    #[property(desc = "second number")]
+    #[props(desc = "second number")]
     second: f64,
 }
 

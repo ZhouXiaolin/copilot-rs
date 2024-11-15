@@ -39,7 +39,7 @@ fn test(name: &str) -> String {
 
 ### Custom function tool
 You can define your own function tool by implementing the `FunctionTool` and `FunctiomImplTrait` traits.
-
+also, you need implement serde's `Deserialize` and `Serialize` traits. beacuse copilot-rs will use serde to deserialize the function tool from a JSON string. 
 ```rust
 #[derive(FunctionTool, Deserialize, Serialize)]
 #[property(desc = "Get weather of an location, the user shoud supply a location first")]

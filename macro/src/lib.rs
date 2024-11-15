@@ -4,7 +4,6 @@ use std::str::FromStr;
 use anyhow::Result;
 use darling::{ast::NestedMeta, FromMeta};
 use darling::{FromDeriveInput, FromField};
-use maplit::hashmap;
 use proc_macro::TokenStream;
 use quote::quote;
 use serde::{Deserialize, Serialize};
@@ -152,7 +151,7 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
 }
 
 #[derive(FromDeriveInput, Debug)]
-#[darling(attributes(property), forward_attrs(allow, deny))]
+#[darling(attributes(props), forward_attrs(allow, deny))]
 struct FunctionToolOptions {
     ident: Ident,
     data: darling::ast::Data<(), FunctionToolProperties>,
@@ -161,7 +160,7 @@ struct FunctionToolOptions {
 }
 
 #[derive(Debug, FromField)]
-#[darling(attributes(property), forward_attrs(allow, deny))]
+#[darling(attributes(props), forward_attrs(allow, deny))]
 struct FunctionToolProperties {
     ident: Option<Ident>,
     ty: syn::Type,
@@ -170,7 +169,7 @@ struct FunctionToolProperties {
     choices: Vec<LitStr>,
 }
 
-#[proc_macro_derive(FunctionTool, attributes(property))]
+#[proc_macro_derive(FunctionTool, attributes(props))]
 pub fn derive_function_tool(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
