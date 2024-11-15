@@ -22,7 +22,8 @@ struct MacroArgs {
     model: Option<String>,
     temperature: Option<f32>,
     max_tokens: Option<u32>,
-    tools: Vec<LitStr>,
+    tools: Option<Vec<LitStr>>,
+    response_format: Option<LitStr>,
 }
 
 fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
@@ -104,40 +105,58 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
         let temperature = args.temperature.unwrap_or(0.7);
         let max_tokens = args.max_tokens.unwrap_or(1024);
         let idents_iter = args
-            .tools
-            .iter()
-            .map(|v| Ident::new(v.value().as_str(), v.span()));
+            .tools.as_ref().map(|v|v.iter()
+            .map(|v| Ident::new(v.value().as_str(), v.span())))
+            ;
 
-        let tools = {
-            let tools = idents_iter.clone().collect::<Vec<_>>();
-            quote! {
-                vec![#(#tools::desc()),*]
-            }
-        };
-        let functions = {
-            let tools = idents_iter.clone().collect::<Vec<_>>();
-            quote! {
-                {
-                    let mut hm = std::collections::HashMap::new();
-                    #(hm.insert(#tools::key(),#tools::inject as fn(std::collections::HashMap<String, serde_json::Value>) -> String);)*
-                    hm
+        let impl_def = if let Some(idents_iter) = idents_iter {
+            let tools = {
+                let tools = idents_iter.clone().collect::<Vec<_>>();
+                quote! {
+                    vec![#(#tools::desc()),*]
                 }
-            }
+            };
+            let functions = {
+                let tools = idents_iter.clone().collect::<Vec<_>>();
+                quote! {
+                    {
+                        let mut hm = std::collections::HashMap::new();
+                        #(hm.insert(#tools::key(),#tools::inject as fn(std::collections::HashMap<String, serde_json::Value>) -> String);)*
+                        hm
+                    }
+                }
+            };
+    
+            let impl_def = quote! {
+                impl #new_chat_trait_name_ident for Vec<copilot_rs::PromptMessage> {
+                    fn #new_chat_method_ident(&self) -> String {
+                        let client = #client_model();
+                        let model = #model;
+                        let temperature = #temperature;
+                        let max_tokens = #max_tokens;
+                        let tools = #tools;
+                        let functions = #functions;
+                        copilot_rs::chat(&client,&self,model,temperature, max_tokens,tools,functions)
+                    }
+                }
+            };
+            impl_def
+        }else {
+            let impl_def = quote! {
+                impl #new_chat_trait_name_ident for Vec<copilot_rs::PromptMessage> {
+                    fn #new_chat_method_ident(&self) -> String {
+                        let client = #client_model();
+                        let model = #model;
+                        let temperature = #temperature;
+                        let max_tokens = #max_tokens;
+                        copilot_rs::chat_no_tools(&client,&self,model,temperature, max_tokens)
+                    }
+                }
+            };
+            impl_def
         };
 
-        let impl_def = quote! {
-            impl #new_chat_trait_name_ident for Vec<copilot_rs::PromptMessage> {
-                fn #new_chat_method_ident(&self) -> String {
-                    let client = #client_model();
-                    let model = #model;
-                    let temperature = #temperature;
-                    let max_tokens = #max_tokens;
-                    let tools = #tools;
-                    let functions = #functions;
-                    copilot_rs::chat(&client,&self,model,temperature, max_tokens,tools,functions)
-                }
-            }
-        };
+
         let expanded = quote! {
             #item
 

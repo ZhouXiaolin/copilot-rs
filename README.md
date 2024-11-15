@@ -1,4 +1,4 @@
-# Copilot Rust SDK
+# Copilot
 
 ## Overview
 Copilot Rust SDK is a Rust library for interacting with the chat model.
@@ -12,7 +12,7 @@ It provides integration with the chat API, support for custom function tools, an
 ## Installation
 Add the following dependencies to your `Cargo.toml`:
 ```toml
-copilot-rs = "0.1.0"
+copilot-rs = "0.1.1"
 ```
 
 ## Usage
