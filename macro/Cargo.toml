@@ -2,7 +2,13 @@
 name = "copilot-rs-macro"
 version = "0.1.0"
 edition = "2021"
-
+description = "A Rust SDK for interacting with chat models, providing easy-to-use functions and tools."
+categories = ["development", "chat-models", "rust-library"]
+keywords = ["rust", "chat-model", "sdk", "function-tools", "macro"]
+repository = "https://github.com/ZhouXiaolin/copilot-rs.git"
+authors = ["Solaren <zhouxiaolinux@gmail.com>"]
+license = "MIT"
+readme = "README.md"
 [lib]
 proc-macro = true
 
