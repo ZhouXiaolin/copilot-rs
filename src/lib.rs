@@ -23,39 +23,6 @@ pub struct ChatModel {
     pub chat_api_key: String,
 }
 type FuncImpl = fn(std::collections::HashMap<String, serde_json::Value>) -> String;
-
-pub fn chat_no_tools(
-    model: &ChatModel,
-    messages: &[PromptMessage],
-    chat_model: &str,
-    temperature: f32,
-    max_tokens: u32,
-) -> String {
-    let client = reqwest::blocking::Client::new();
-    let mut headers = reqwest::header::HeaderMap::new();
-
-    headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
-    headers.insert(
-        AUTHORIZATION,
-        format!("Bearer {}", model.chat_api_key).parse().unwrap(),
-    );
-    let url = format!("{}/chat/completions", model.chat_api_base);
-    let common_builder = client.post(url).headers(headers);
-
-    let json = json!({
-        "model": model.chat_model_default,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "stream":false,
-    });
-
-    let builder = common_builder.try_clone().unwrap().json(&json);
-    let res = builder.send().unwrap().text().unwrap();
-    let res = serde_json::from_str::<ChatCompletion>(&res).unwrap();
-    res.get_content().to_string()
-}
-
 pub fn chat(
     model: &ChatModel,
     messages: &[PromptMessage],
@@ -80,14 +47,22 @@ pub fn chat(
     let url = format!("{}/chat/completions", model.chat_api_base);
     let common_builder = client.post(url).headers(headers);
 
-    let json = json!({
-        "model": model.chat_model_default,
+    let chat_model = if chat_model.is_empty() {
+        &model.chat_model_default
+    } else {
+        chat_model
+    };
+    let mut json = json!({
+        "model":chat_model,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream":false,
-        "tools":tools
     });
+    if !tools.is_empty(){
+        json["tools"] = serde_json::Value::Array(tools);
+    }
+
 
     let builder = common_builder.try_clone().unwrap().json(&json);
     let res = builder.send().unwrap().text().unwrap();

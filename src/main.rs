@@ -8,17 +8,17 @@ fn main() {
 }
 
 fn client() -> copilot_rs::ChatModel {
-    // let config = include_str!("../config.json");
-    // serde_json::from_str(config).unwrap()
-    let chat_model = copilot_rs::ChatModel::builder()
-        .chat_api_base("chat_api_base".to_string())
-        .chat_api_key("chat_api_key".to_string())
-        .chat_model_default("chat_model_default".to_string())
-        .build();
-    chat_model
+    let config = include_str!("../config.json");
+    serde_json::from_str(config).unwrap()
+    // let chat_model = copilot_rs::ChatModel::builder()
+    //     .chat_api_base("chat_api_base".to_string())
+    //     .chat_api_key("chat_api_key".to_string())
+    //     .chat_model_default("chat_model_default".to_string())
+    //     .build();
+    // chat_model
 }
 // complete会将函数体和参数注入到函数中
-#[complete(client="client", temperature=0.6, max_tokens=1000, tools=["Add", "GetCurrentWeather"])]
+#[complete(client="client", temperature=0.6, max_tokens=1000, tools=["Add", "GetCurrentWeather"], response_format="Answer")]
 fn test(name: &str) -> String {
     vec![format!("{}今天天气怎么样", name).user()].chat()
 }
@@ -32,7 +32,7 @@ struct GetCurrentWeather {
 
 impl FunctiomImplTrait for GetCurrentWeather {
     fn exec(&self) -> String {
-        "艳阳天".to_string()
+        "剧烈高温".to_string()
     }
 }
 
@@ -49,4 +49,10 @@ impl FunctiomImplTrait for Add {
     fn exec(&self) -> String {
         (self.first + self.second).to_string()
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Answer {
+    question: String,
+    answer: String,
 }

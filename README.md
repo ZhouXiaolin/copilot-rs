@@ -48,7 +48,7 @@ struct GetCurrentWeather {
     location: String,
 }
 
-impl FunctiomImplTrait for GetCurrentWeather {
+impl FunctionImplTrait for GetCurrentWeather {
     fn exec(&self) -> String {
         "大暴雨，由于雨势太大，可能发生洪灾".to_string()
     }
