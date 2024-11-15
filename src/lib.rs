@@ -5,6 +5,7 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use typed_builder::TypedBuilder;
+
 pub trait FunctionTool {
     fn key() -> String;
     fn desc() -> String;
@@ -21,7 +22,7 @@ pub struct ChatModel {
     pub chat_model_default: String,
     pub chat_api_key: String,
 }
-
+type FuncImpl = fn(std::collections::HashMap<String, serde_json::Value>) -> String;
 pub fn chat(
     model: &ChatModel,
     messages: &[PromptMessage],
@@ -29,17 +30,8 @@ pub fn chat(
     temperature: f32,
     max_tokens: u32,
     tools: Vec<String>,
-    keys: Vec<String>,
-    functions: Vec<fn(std::collections::HashMap<String, serde_json::Value>) -> String>,
+    functions: HashMap<String, FuncImpl>,
 ) -> String {
-    let func_map =
-        keys.clone()
-            .into_iter()
-            .zip(functions.iter())
-            .fold(HashMap::new(), |mut acc, (k, v)| {
-                acc.insert(k, v);
-                acc
-            });
     let tools: Vec<serde_json::Value> = tools
         .iter()
         .map(|v| serde_json::from_str(v).unwrap())
@@ -73,7 +65,7 @@ pub fn chat(
                 .iter()
                 .map(|call| {
                     let call_name = &call.function.name;
-                    let call_func = func_map.get(call_name).unwrap();
+                    let call_func = functions.get(call_name).unwrap();
                     let args = call.function.arguments.clone();
                     let result = call_func(args);
                     result.tool(call.id.clone())

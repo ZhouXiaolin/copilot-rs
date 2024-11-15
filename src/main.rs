@@ -14,7 +14,7 @@ fn client() -> copilot_rs::ChatModel {
     serde_json::from_str(config).unwrap()
 }
 // complete会将函数体和参数注入到函数中
-#[complete(client="client", temperature=0.6, max_tokens=1000, tools=["Add"])]
+#[complete(client="client", temperature=0.6, max_tokens=1000, tools=["Add", "GetCurrentWeather"])]
 fn test(name: &str) -> String {
     vec![format!("{}今天天气怎么样",name).user()].chat()
 }

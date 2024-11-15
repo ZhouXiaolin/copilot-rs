@@ -118,13 +118,11 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
         let functions = {
             let tools = idents_iter.clone().collect::<Vec<_>>();
             quote! {
-                vec![#(#tools::inject as fn(std::collections::HashMap<String, serde_json::Value>) -> String),*]
-            }
-        };
-        let keys = {
-            let tools = idents_iter.clone().collect::<Vec<_>>();
-            quote! {
-                vec![#(#tools::key()),*]
+                {
+                    let mut hm = std::collections::HashMap::new();
+                    #(hm.insert(#tools::key(),#tools::inject as fn(std::collections::HashMap<String, serde_json::Value>) -> String);)*
+                    hm
+                }
             }
         };
 
@@ -135,10 +133,9 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
                     let model = #model;
                     let temperature = #temperature;
                     let max_tokens = #max_tokens;
-                    let r = #tools;
-                    let f = #functions;
-                    let k = #keys;
-                    copilot_rs::chat(&client,&self,model,temperature, max_tokens,r,k,f)
+                    let tools = #tools;
+                    let functions = #functions;
+                    copilot_rs::chat(&client,&self,model,temperature, max_tokens,tools,functions)
                 }
             }
         };
