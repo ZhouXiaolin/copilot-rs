@@ -1,0 +1,6 @@
+/target
+config.json
+.DS_Store
+src/.DS_Store
+*.lock
+*/*.lock
