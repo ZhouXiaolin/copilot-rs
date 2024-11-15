@@ -118,7 +118,7 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
         let functions = {
             let tools = idents_iter.clone().collect::<Vec<_>>();
             quote! {
-                vec![#(#tools::inject),*]
+                vec![#(#tools::inject as fn(std::collections::HashMap<String, serde_json::Value>) -> String),*]
             }
         };
         let keys = {

@@ -1,7 +1,3 @@
-[workspace]
-members = ["", "macro"]
-default-members = ["macro"]
-
 [package]
 name = "copilot-rs"
 version = "0.1.0"
