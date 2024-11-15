@@ -1,6 +1,6 @@
 [package]
 name = "copilot-rs-macro"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A Rust SDK for interacting with chat models, providing easy-to-use functions and tools."
 categories = ["development-tools"]

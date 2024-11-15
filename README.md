@@ -57,14 +57,10 @@ impl FunctiomImplTrait for GetCurrentWeather {
 
 more detail, please see the example in the `src/main.rs` file.
 
-### Macro support
-copilot-rs provides a macro called `complete` to simplify the process of injecting parameters and function tools into the chat function.
+## TODO
+- [ ] Support structure output
+- [ ] Add more examples
 
-the `complete` macro takes the following parameters:
-- `client`: the name of the function that returns a `ChatModel` instance.
-- `temperature`: the temperature of the chat model. default is 0.7.
-- `max_tokens`: the maximum number of tokens to generate. default is 1000.
-- `tools`: a list of function tools to inject into the chat function.
-
-
+## Notice
+This project is still in the early stages of development. It is not yet ready for production use.
 if you have some issues with it, please feel free to open an issue or submit a pull request.
