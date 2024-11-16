@@ -12,7 +12,7 @@ It provides integration with the chat API, support for custom function tools, an
 ## Installation
 Add the following dependencies to your `Cargo.toml`:
 ```toml
-copilot-rs = "0.1.1"
+copilot-rs = "0.1.2"
 ```
 
 ## Usage
