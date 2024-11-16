@@ -85,7 +85,6 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
                 hm
             }
         }).unwrap_or(quote! { std::collections::HashMap::new() });
-    let response
     if is_async {
         let trait_def = quote! {
             trait #new_chat_trait_name_ident {
@@ -190,7 +189,7 @@ pub fn derive_function_tool(input: TokenStream) -> TokenStream {
                     _ => "unknown".to_string(),
                 };
                 let mut prop = Property::default();
-                prop.r#type = ty;
+                prop.r#type = ty.to_lowercase();
                 prop.description = field.desc.clone();
                 prop.choices = if field.choices.is_empty() {
                     None

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
+use std::{borrow::Cow, collections::HashMap, iter::once, marker::PhantomData};
 
 pub use copilot_rs_macro::{complete, FunctionTool};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
@@ -11,9 +11,7 @@ pub trait FunctionTool {
     fn desc() -> String;
     fn inject(args: HashMap<String, serde_json::Value>) -> String;
 }
-pub trait Structure {
-    
-}
+pub trait Structure {}
 
 pub trait FunctionImplTrait {
     fn exec(&self) -> String;
@@ -27,8 +25,8 @@ pub struct ChatModel {
 }
 type FuncImpl = fn(std::collections::HashMap<String, serde_json::Value>) -> String;
 
-struct NormalChat<T = String>{
-    _marker: PhantomData<T>
+struct NormalChat<T = String> {
+    _marker: PhantomData<T>,
 }
 
 pub fn chat(
@@ -37,12 +35,11 @@ pub fn chat(
     chat_model: &str,
     temperature: f32,
     max_tokens: u32,
-    // tools: Vec<String>,
     functions: HashMap<String, (String, FuncImpl)>,
 ) -> String {
     let tools: Vec<serde_json::Value> = functions
         .iter()
-        .map(|(_,(v,_))| serde_json::from_str(v).unwrap())
+        .map(|(_, (v, _))| serde_json::from_str(v).unwrap())
         .collect();
     let client = reqwest::blocking::Client::new();
     let mut headers = reqwest::header::HeaderMap::new();
@@ -67,10 +64,9 @@ pub fn chat(
         "max_tokens": max_tokens,
         "stream":false,
     });
-    if !tools.is_empty(){
+    if !tools.is_empty() {
         json["tools"] = serde_json::Value::Array(tools);
     }
-
 
     let builder = common_builder.try_clone().unwrap().json(&json);
     let res = builder.send().unwrap().text().unwrap();
@@ -78,15 +74,19 @@ pub fn chat(
     if let Some(common_message) = res.choices.first().and_then(|v| v.message.as_ref()) {
         if let Some(tool_calls) = &common_message.tool_calls {
             let tool_messages = tool_calls
-                .iter()
+                .first()
                 .map(|call| {
                     let call_name = &call.function.name;
-                    let (_,call_func) = functions.get(call_name).unwrap();
-                    let args = call.function.arguments.clone();
+                    let (_, call_func) = functions.get(call_name).unwrap();
+                    let args = &call.function.arguments;
+                    let args = args.replace("\\\"", "\"");
+                    let args: HashMap<String, serde_json::Value> =
+                        serde_json::from_str(&args).unwrap();
                     let result = call_func(args);
                     result.tool(call.id.clone())
                 })
-                .collect::<Vec<_>>();
+                .unwrap();
+            let tool_messages = vec![common_message.clone(), tool_messages];
             let total_message = messages.iter().chain(&tool_messages).collect::<Vec<_>>();
 
             let json = json!({
@@ -146,20 +146,19 @@ pub struct ToolCall {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Function {
     name: String,
-    #[serde(deserialize_with = "deserialize_map")]
-    arguments: HashMap<String, serde_json::Value>,
+    // #[serde(deserialize_with = "deserialize_map")]
+    arguments: String,
 }
 
-fn deserialize_map<'de, D>(deserializer: D) -> Result<HashMap<String, serde_json::Value>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let json_string: String = Deserialize::deserialize(deserializer)?;
-    dbg!(&json_string);
-    let s = json_string.replace("\\\"", "\\");
-    let map: HashMap<String, serde_json::Value> = serde_json::from_str(&s).unwrap();
-    Ok(map)
-}
+// fn deserialize_map<'de, D>(deserializer: D) -> Result<HashMap<String, serde_json::Value>, D::Error>
+// where
+//     D: serde::Deserializer<'de>,
+// {
+//     let json_string: String = Deserialize::deserialize(deserializer)?;
+//     let s = json_string.replace("\\\"", "\\");
+//     let map: HashMap<String, serde_json::Value> = serde_json::from_str(&s).unwrap();
+//     Ok(map)
+// }
 pub trait Chat {
     fn chat(&self) -> String {
         "chat".to_string()
@@ -167,6 +166,7 @@ pub trait Chat {
 }
 
 impl Chat for Vec<PromptMessage> {}
+impl Chat for dyn AsRef<[PromptMessage]> {}
 
 pub trait IntoPrompt
 where
