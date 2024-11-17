@@ -15,12 +15,6 @@ fn main() {
 fn client() -> copilot_rs::ChatModel {
     let config = include_str!("../config.json");
     serde_json::from_str(config).unwrap()
-    // let chat_model = copilot_rs::ChatModel::builder()
-    //     .chat_api_base("chat_api_base".to_string())
-    //     .chat_api_key("chat_api_key".to_string())
-    //     .chat_model_default("chat_model_default".to_string())
-    //     .build();
-    // chat_model
 }
 
 #[complete(client = "client", temperature = 0.6, max_tokens = 4096)]

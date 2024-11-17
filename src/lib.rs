@@ -5,7 +5,7 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use typed_builder::TypedBuilder;
-
+use anyhow::{Context, Result};
 pub trait FunctionTool {
     fn key() -> String;
     fn desc() -> String;
@@ -36,7 +36,21 @@ pub fn chat(
     temperature: f32,
     max_tokens: u32,
     functions: HashMap<String, (String, FuncImpl)>,
-) -> String {
+) -> String{
+    match normal_chat(model, messages, chat_model, temperature, max_tokens, functions) {
+        Ok(output) => output,
+        Err(e) => e.to_string(),
+    }
+}
+
+pub fn normal_chat(
+    model: &ChatModel,
+    messages: &[PromptMessage],
+    chat_model: &str,
+    temperature: f32,
+    max_tokens: u32,
+    functions: HashMap<String, (String, FuncImpl)>,
+) -> Result<String> {
     let tools: Vec<serde_json::Value> = functions
         .iter()
         .map(|(_, (v, _))| serde_json::from_str(v).unwrap())
@@ -44,10 +58,10 @@ pub fn chat(
     let client = reqwest::blocking::Client::new();
     let mut headers = reqwest::header::HeaderMap::new();
 
-    headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+    headers.insert(CONTENT_TYPE, "application/json".parse()?);
     headers.insert(
         AUTHORIZATION,
-        format!("Bearer {}", model.chat_api_key).parse().unwrap(),
+        format!("Bearer {}", model.chat_api_key).parse()?,
     );
     let url = format!("{}/chat/completions", model.chat_api_base);
     let common_builder = client.post(url).headers(headers);
@@ -68,9 +82,9 @@ pub fn chat(
         json["tools"] = serde_json::Value::Array(tools);
     }
 
-    let builder = common_builder.try_clone().unwrap().json(&json);
-    let res = builder.send().unwrap().text().unwrap();
-    let res = serde_json::from_str::<ChatCompletion>(&res).unwrap();
+    let builder = common_builder.try_clone().context("build request")?.json(&json);
+    let res = builder.send()?.text()?;
+    let res = serde_json::from_str::<ChatCompletion>(&res)?;
     if let Some(common_message) = res.choices.first().and_then(|v| v.message.as_ref()) {
         if let Some(tool_calls) = &common_message.tool_calls {
             let tool_messages = tool_calls
@@ -98,22 +112,20 @@ pub fn chat(
             });
 
             let builder = common_builder.json(&json);
-            let res = builder.send().unwrap().text().unwrap();
-            let res = serde_json::from_str::<ChatCompletion>(&res).unwrap();
+            let res = builder.send()?.text()?;
+            let res = serde_json::from_str::<ChatCompletion>(&res)?;
             let r = res
                 .choices
                 .first()
-                .as_ref()
-                .unwrap()
+                .as_ref().context("no choices")?
                 .message
-                .as_ref()
-                .unwrap();
-            r.content.clone()
+                .as_ref().context("no message")?;
+            Ok(r.content.clone())
         } else {
-            common_message.content.clone()
+            Ok(common_message.content.clone())
         }
     } else {
-        "none".to_string()
+        Ok("none".to_string())
     }
 }
 
@@ -146,19 +158,9 @@ pub struct ToolCall {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Function {
     name: String,
-    // #[serde(deserialize_with = "deserialize_map")]
     arguments: String,
 }
 
-// fn deserialize_map<'de, D>(deserializer: D) -> Result<HashMap<String, serde_json::Value>, D::Error>
-// where
-//     D: serde::Deserializer<'de>,
-// {
-//     let json_string: String = Deserialize::deserialize(deserializer)?;
-//     let s = json_string.replace("\\\"", "\\");
-//     let map: HashMap<String, serde_json::Value> = serde_json::from_str(&s).unwrap();
-//     Ok(map)
-// }
 pub trait Chat {
     fn chat(&self) -> String {
         "chat".to_string()
