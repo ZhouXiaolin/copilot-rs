@@ -1,15 +1,13 @@
-use std::{borrow::Cow, collections::HashMap, iter::once, marker::PhantomData};
-
-pub use copilot_rs_macro::{complete, FunctionTool};
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-use typed_builder::TypedBuilder;
 use anyhow::{Context, Result};
+pub use copilot_rs_core::*;
+pub use copilot_rs_macro::{complete, FunctionTool};
+use serde::{Deserialize, Serialize};
+use std::{borrow::Cow, collections::HashMap, iter::once, marker::PhantomData, pin::Pin};
+use typed_builder::TypedBuilder;
 pub trait FunctionTool {
     fn key() -> String;
-    fn desc() -> String;
-    fn inject(args: HashMap<String, serde_json::Value>) -> String;
+    fn desc() -> ToolImpl;
+    fn inject(args: std::collections::HashMap<String, serde_json::Value>) -> String;
 }
 pub trait Structure {}
 
@@ -23,7 +21,7 @@ pub struct Client {
     pub api_key: String,
     pub model_default: String,
 }
-type FuncImpl = fn(std::collections::HashMap<String, serde_json::Value>) -> String;
+type InjectionImpl = fn(std::collections::HashMap<String, serde_json::Value>) -> String;
 
 struct NormalChat<T = String> {
     _marker: PhantomData<T>,
@@ -35,27 +33,32 @@ pub fn chat(
     chat_model: &str,
     temperature: f32,
     max_tokens: u32,
-    functions: HashMap<String, (String, FuncImpl)>,
-) -> String{
-    match normal_chat(model, messages, chat_model, temperature, max_tokens, functions) {
+    functions: HashMap<String, (ToolImpl, InjectionImpl)>,
+) -> String {
+    match normal_chat(
+        model,
+        messages,
+        chat_model,
+        temperature,
+        max_tokens,
+        functions,
+    ) {
         Ok(output) => output,
         Err(e) => e.to_string(),
     }
 }
 
-
 type FunctionName = String;
-type FunctionDesc = String;
-struct OpenAIRequest {
+
+#[derive(Debug, Serialize)]
+struct OpenAIRequest<'a> {
     model: String,
     messages: Vec<PromptMessage>,
     max_tokens: u32,
     temperature: f32,
-    functions: HashMap<FunctionName, (FunctionDesc, FuncImpl)>,
-    presence_penalty: f32,
-    frequency_penalty: f32,
-    stop: Vec<String>,
-    stream: bool, 
+    stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<&'a ToolImpl>>,
 }
 
 pub fn normal_chat(
@@ -64,12 +67,9 @@ pub fn normal_chat(
     chat_model: &str,
     temperature: f32,
     max_tokens: u32,
-    functions: HashMap<String, (String, FuncImpl)>,
+    functions: HashMap<FunctionName, (ToolImpl, InjectionImpl)>,
 ) -> Result<String> {
-    let tools: Vec<serde_json::Value> = functions
-        .iter()
-        .map(|(_, (v, _))| serde_json::from_str(v).unwrap())
-        .collect();
+    let tools: Vec<_> = functions.iter().map(|(_, (v, _))| v).collect();
     let requst_client = reqwest::blocking::Client::new();
     let url = format!("{}/chat/completions", client.api_base);
     let common_builder = requst_client.post(url).bearer_auth(&client.api_key);
@@ -79,18 +79,20 @@ pub fn normal_chat(
     } else {
         chat_model
     };
-    let mut json = json!({
-        "model":chat_model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "stream":false,
-    });
-    if !tools.is_empty() {
-        json["tools"] = serde_json::Value::Array(tools);
-    }
 
-    let builder = common_builder.try_clone().context("build request")?.json(&json);
+    let json = OpenAIRequest {
+        model: chat_model.to_string(),
+        messages: messages.to_vec(),
+        max_tokens,
+        temperature,
+        stream: false,
+        tools: (!tools.is_empty()).then_some(tools),
+    };
+
+    let builder = common_builder
+        .try_clone()
+        .context("build request")?
+        .json(&json);
     let res = builder.send()?.text()?;
     let res = serde_json::from_str::<ChatCompletion>(&res)?;
     if let Some(common_message) = res.choices.first().and_then(|v| v.message.as_ref()) {
@@ -109,15 +111,19 @@ pub fn normal_chat(
                 })
                 .unwrap();
             let tool_messages = vec![common_message.clone(), tool_messages];
-            let total_message = messages.iter().chain(&tool_messages).collect::<Vec<_>>();
-
-            let json = json!({
-                "model": client.model_default,
-                "messages": total_message,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "stream":false,
-            });
+            let total_message = messages
+                .iter()
+                .chain(&tool_messages)
+                .map(|v| v.clone())
+                .collect::<Vec<_>>();
+            let json = OpenAIRequest {
+                model: client.model_default.to_string(),
+                messages: total_message,
+                max_tokens,
+                temperature,
+                stream: false,
+                tools: None,
+            };
 
             let builder = common_builder.json(&json);
             let res = builder.send()?.text()?;
@@ -125,9 +131,11 @@ pub fn normal_chat(
             let r = res
                 .choices
                 .first()
-                .as_ref().context("no choices")?
+                .as_ref()
+                .context("no choices")?
                 .message
-                .as_ref().context("no message")?;
+                .as_ref()
+                .context("no message")?;
             Ok(r.content.clone())
         } else {
             Ok(common_message.content.clone())
@@ -172,6 +180,10 @@ pub struct Function {
 pub trait Chat {
     fn chat(&self) -> String {
         "chat".to_string()
+    }
+
+    fn async_chat(&self) -> Pin<Box<impl std::future::Future<Output = String>>> {
+        Box::pin(async { "async_chat".to_string() })
     }
 }
 

@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use anyhow::Result;
+use copilot_rs_core::{default_type, Parameters, Property, ToolImpl};
 use darling::{ast::NestedMeta, FromMeta};
 use darling::{FromDeriveInput, FromField};
 use proc_macro::TokenStream;
-use quote::quote;
-use serde::{Deserialize, Serialize};
+use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DeriveInput, Ident};
 use syn::{Expr, ItemFn, LitStr, Stmt};
 #[proc_macro_attribute]
@@ -66,7 +66,7 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
     let new_chat_method_ident = Ident::new(&new_chat_method, proc_macro::Span::call_site().into());
 
     let new_chat_trait_name_ident = Ident::new(
-        &format!("chat_{}", fastrand::u32(..)),
+        &format!("Chat{}", fastrand::u32(..)),
         proc_macro::Span::call_site().into(),
     );
 
@@ -217,16 +217,13 @@ pub fn derive_function_tool(input: TokenStream) -> TokenStream {
         },
     };
 
-    let json = serde_json::to_string(&desc_impl).unwrap();
-
     let ret = quote! {
         impl FunctionTool for #struct_name {
             fn key() -> String {
                 #struct_str.to_string()
             }
-            fn desc() -> String {
-                #json.to_string()
-
+            fn desc() -> ToolImpl {
+                #desc_impl
             }
             fn inject(args: std::collections::HashMap<String, serde_json::Value>) -> String {
                 let args = serde_json::to_string(&args).unwrap();
@@ -236,36 +233,4 @@ pub fn derive_function_tool(input: TokenStream) -> TokenStream {
         }
     };
     ret.into()
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "function")]
-enum ToolImpl {
-    #[serde(rename = "function")]
-    Function {
-        name: String,
-        description: String,
-        parameters: Parameters,
-    },
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Parameters {
-    #[serde(default = "default_type")]
-    r#type: String,
-    properties: HashMap<String, Property>,
-    required: Vec<String>,
-}
-const DEFAULT_TYPE: &str = "object";
-
-fn default_type() -> String {
-    DEFAULT_TYPE.to_string()
-}
-
-#[derive(Debug, Deserialize, Serialize, Default)]
-struct Property {
-    r#type: String,
-    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-    choices: Option<Vec<String>>,
-    description: String,
 }

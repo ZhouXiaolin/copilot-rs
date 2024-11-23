@@ -1,10 +1,10 @@
-use copilot_rs::{complete, FunctionImplTrait, FunctionTool, IntoPrompt, Structure};
+use copilot_rs::{complete, FunctionImplTrait, FunctionTool, IntoPrompt, ToolImpl};
 use serde::{Deserialize, Serialize};
 extern crate copilot_rs;
 
 fn main() {
     let response = test("天津");
-    println!("{}",response);
+    println!("{}", response);
 }
 
 fn client() -> copilot_rs::Client {
