@@ -18,10 +18,10 @@ pub trait FunctionImplTrait {
 }
 
 #[derive(TypedBuilder, Debug, Serialize, Deserialize)]
-pub struct ChatModel {
-    pub chat_api_base: String,
-    pub chat_model_default: String,
-    pub chat_api_key: String,
+pub struct Client {
+    pub api_base: String,
+    pub api_key: String,
+    pub model_default: String,
 }
 type FuncImpl = fn(std::collections::HashMap<String, serde_json::Value>) -> String;
 
@@ -30,7 +30,7 @@ struct NormalChat<T = String> {
 }
 
 pub fn chat(
-    model: &ChatModel,
+    model: &Client,
     messages: &[PromptMessage],
     chat_model: &str,
     temperature: f32,
@@ -43,8 +43,23 @@ pub fn chat(
     }
 }
 
+
+type FunctionName = String;
+type FunctionDesc = String;
+struct OpenAIRequest {
+    model: String,
+    messages: Vec<PromptMessage>,
+    max_tokens: u32,
+    temperature: f32,
+    functions: HashMap<FunctionName, (FunctionDesc, FuncImpl)>,
+    presence_penalty: f32,
+    frequency_penalty: f32,
+    stop: Vec<String>,
+    stream: bool, 
+}
+
 pub fn normal_chat(
-    model: &ChatModel,
+    client: &Client,
     messages: &[PromptMessage],
     chat_model: &str,
     temperature: f32,
@@ -55,19 +70,12 @@ pub fn normal_chat(
         .iter()
         .map(|(_, (v, _))| serde_json::from_str(v).unwrap())
         .collect();
-    let client = reqwest::blocking::Client::new();
-    let mut headers = reqwest::header::HeaderMap::new();
-
-    headers.insert(CONTENT_TYPE, "application/json".parse()?);
-    headers.insert(
-        AUTHORIZATION,
-        format!("Bearer {}", model.chat_api_key).parse()?,
-    );
-    let url = format!("{}/chat/completions", model.chat_api_base);
-    let common_builder = client.post(url).headers(headers);
+    let requst_client = reqwest::blocking::Client::new();
+    let url = format!("{}/chat/completions", client.api_base);
+    let common_builder = requst_client.post(url).bearer_auth(&client.api_key);
 
     let chat_model = if chat_model.is_empty() {
-        &model.chat_model_default
+        &client.model_default
     } else {
         chat_model
     };
@@ -104,7 +112,7 @@ pub fn normal_chat(
             let total_message = messages.iter().chain(&tool_messages).collect::<Vec<_>>();
 
             let json = json!({
-                "model": model.chat_model_default,
+                "model": client.model_default,
                 "messages": total_message,
                 "temperature": temperature,
                 "max_tokens": max_tokens,

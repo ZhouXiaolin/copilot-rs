@@ -7,7 +7,7 @@ fn main() {
     println!("{}",response);
 }
 
-fn client() -> copilot_rs::ChatModel {
+fn client() -> copilot_rs::Client {
     let config = include_str!("../config.json");
     serde_json::from_str(config).unwrap()
 }
