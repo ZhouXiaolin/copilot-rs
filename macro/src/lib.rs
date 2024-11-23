@@ -66,7 +66,7 @@ fn common_simple(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
     let new_chat_method_ident = Ident::new(&new_chat_method, proc_macro::Span::call_site().into());
 
     let new_chat_trait_name_ident = Ident::new(
-        &format!("RealChat{}", uuid::Uuid::new_v4()).replace("-", ""),
+        &format!("chat_{}", fastrand::u32(..)),
         proc_macro::Span::call_site().into(),
     );
 
