@@ -5,7 +5,7 @@ Copilot Rust SDK is a Rust library for interacting with the chat model.
 It provides integration with the chat API, support for custom function tools, and message handling.
 
 ## Features
-- **Chat model integration**: Interact with the chat API through the `ChatModel` structure.
+- **Chat model integration**: Interact with the chat API through the `Client` structure.
 - **Custom function tool**: Implement custom function tools using `FunctionTool` and `FunctiomImplTrait`.
 - **Macro support**: Simplify function tool injection and configuration using `complete` macro.
 
@@ -21,13 +21,13 @@ To interact with the chat model, you need to create a `ChatModel` instance with 
 
 normally, you can use the `ChatModel::builder()` method to create a `ChatModel` instance.
 
-or you can use serde to deserialize a `ChatModel` instance from a JSON string.
+or you can use serde to deserialize a `Client` instance from a JSON string.
 
 then use complete macro to inject paramaters and function tools into the chat function.
 
 
 ```rust
-fn client() -> copilot_rs::ChatModel {
+fn client() -> copilot_rs::Client {
     ...
 }
 
@@ -42,9 +42,9 @@ You can define your own function tool by implementing the `FunctionTool` and `Fu
 also, you need implement serde's `Deserialize` and `Serialize` traits. beacuse copilot-rs will use serde to deserialize the function tool from a JSON string. 
 ```rust
 #[derive(FunctionTool, Deserialize, Serialize)]
-#[property(desc = "Get weather of an location, the user shoud supply a location first")]
+#[props(desc = "Get weather of an location, the user shoud supply a location first")]
 struct GetCurrentWeather {
-    #[property(desc = "The city and state, e.g. San Francisco, CA")]
+    #[props(desc = "The city and state, e.g. San Francisco, CA")]
     location: String,
 }
 

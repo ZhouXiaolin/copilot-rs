@@ -1,27 +1,18 @@
+mod types;
 use anyhow::{Context, Result};
 pub use copilot_rs_core::*;
 pub use copilot_rs_macro::{complete, FunctionTool};
-use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashMap, iter::once, marker::PhantomData, pin::Pin};
-use typed_builder::TypedBuilder;
-pub trait FunctionTool {
-    fn key() -> String;
-    fn desc() -> ToolImpl;
-    fn inject(args: std::collections::HashMap<String, serde_json::Value>) -> String;
-}
+use std::{collections::HashMap, marker::PhantomData, pin::Pin};
+use types::{ChatCompletion, OpenAIRequest, Role};
+pub use types::{Client, PromptMessage};
 pub trait Structure {}
 
 pub trait FunctionImplTrait {
     fn exec(&self) -> String;
 }
 
-#[derive(TypedBuilder, Debug, Serialize, Deserialize)]
-pub struct Client {
-    pub api_base: String,
-    pub api_key: String,
-    pub model_default: String,
-}
 type InjectionImpl = fn(std::collections::HashMap<String, serde_json::Value>) -> String;
+type FunctionName = String;
 
 struct NormalChat<T = String> {
     _marker: PhantomData<T>,
@@ -33,7 +24,7 @@ pub fn chat(
     chat_model: &str,
     temperature: f32,
     max_tokens: u32,
-    functions: HashMap<String, (ToolImpl, InjectionImpl)>,
+    functions: HashMap<FunctionName, (ToolImpl, InjectionImpl)>,
 ) -> String {
     match normal_chat(
         model,
@@ -46,19 +37,6 @@ pub fn chat(
         Ok(output) => output,
         Err(e) => e.to_string(),
     }
-}
-
-type FunctionName = String;
-
-#[derive(Debug, Serialize)]
-struct OpenAIRequest<'a> {
-    model: String,
-    messages: Vec<PromptMessage>,
-    max_tokens: u32,
-    temperature: f32,
-    stream: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    tools: Option<Vec<&'a ToolImpl>>,
 }
 
 pub fn normal_chat(
@@ -145,38 +123,6 @@ pub fn normal_chat(
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum Role {
-    System,
-    User,
-    Assistant,
-    Tool,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PromptMessage {
-    pub role: Role,
-    pub content: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    tool_calls: Option<Vec<ToolCall>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    tool_call_id: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ToolCall {
-    id: String,
-    #[serde(rename = "type")]
-    ty: String,
-    function: Function,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Function {
-    name: String,
-    arguments: String,
-}
-
 pub trait Chat {
     fn chat(&self) -> String {
         "chat".to_string()
@@ -231,42 +177,3 @@ where
 impl IntoPrompt for &str {}
 
 impl IntoPrompt for String {}
-
-#[derive(Debug, Deserialize, Default)]
-pub struct ChatCompletion {
-    choices: Vec<Choice>,
-    created: u64,
-    id: String,
-    model: String,
-    object: String,
-}
-
-impl ChatCompletion {
-    pub fn get_content(&self) -> Cow<str> {
-        if let Some(content) = self.choices[0]
-            .delta
-            .as_ref()
-            .and_then(|v| v.content.as_ref())
-        {
-            Cow::Borrowed(content)
-        } else if let Some(msg) = self.choices[0].message.as_ref() {
-            Cow::Borrowed(&msg.content)
-        } else {
-            Cow::Borrowed("")
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct Choice {
-    delta: Option<Delta>,
-    message: Option<PromptMessage>,
-    finish_reason: Option<String>,
-    index: u32,
-}
-
-#[derive(Debug, Deserialize)]
-struct Delta {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    content: Option<String>,
-}

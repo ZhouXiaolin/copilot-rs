@@ -26,6 +26,6 @@ struct GetCurrentWeather {
 
 impl FunctionImplTrait for GetCurrentWeather {
     fn exec(&self) -> String {
-        "剧烈高温".to_string()
+        "剧烈低温".to_string()
     }
 }

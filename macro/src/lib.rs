@@ -6,7 +6,7 @@ use copilot_rs_core::{default_type, Parameters, Property, ToolImpl};
 use darling::{ast::NestedMeta, FromMeta};
 use darling::{FromDeriveInput, FromField};
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Ident};
 use syn::{Expr, ItemFn, LitStr, Stmt};
 #[proc_macro_attribute]

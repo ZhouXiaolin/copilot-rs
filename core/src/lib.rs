@@ -3,7 +3,11 @@ use std::collections::HashMap;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use serde::{Deserialize, Serialize};
-
+pub trait FunctionTool {
+    fn key() -> String;
+    fn desc() -> ToolImpl;
+    fn inject(args: std::collections::HashMap<String, serde_json::Value>) -> String;
+}
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", content = "function")]
 pub enum ToolImpl {
